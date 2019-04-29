@@ -83,7 +83,7 @@ class Annotation:
     def load_json_file(cls, path, project_meta):
         with open(path) as fin:
             data = json.load(fin)
-        return cls.from_json(data, project_meta)
+        return cls.from_json(data, project_/Users/chrism/Downloads/ojdqFqAvm5EeZSUBd0WBymGIbjMjv1/ds/img/SV-ira-ua_re_0017_morph_ai.pngmeta)
 
     def clone(self, img_size=None, labels=None, img_tags=None, img_description=None, pixelwise_scores_labels=None):
         return Annotation(img_size=take_with_default(img_size, self.img_size),
