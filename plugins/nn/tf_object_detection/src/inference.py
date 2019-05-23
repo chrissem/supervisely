@@ -13,9 +13,9 @@ import config as config_lib
 
 
 class ObjectDetectionSingleImageApplier(SingleImageInferenceBase):
-    def __init__(self):
+    def __init__(self, task_model_config=None):
         sly.logger.info('TF object detection inference init started.')
-        super().__init__()
+        super().__init__(task_model_config)
         self.confidence_thresh = self._config['min_confidence_threshold']
         sly.logger.info('TF object detection inference init done.')
 
@@ -42,7 +42,7 @@ class ObjectDetectionSingleImageApplier(SingleImageInferenceBase):
     def _validate_model_config(self, config):
         JsonConfigValidator().validate_inference_cfg(config)
 
-    def _model_out_obj_tags(self):
+    def _model_out_tags(self):
         tag_meta_dict = sly.TagMetaCollection()
         return tag_meta_dict.add(self.confidence_tag_meta)
 

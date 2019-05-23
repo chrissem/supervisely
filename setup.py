@@ -1,45 +1,45 @@
-"""
-Tools for Imagetagger
-"""
+# Thanks to Muammar ibn Faisal (https://github.com/Jihadik) for contributing
+# this setup script.
+
+import os
+
 from setuptools import find_packages, setup
 
-dependencies = ['opencv-python', 'scikit-image', 'prettytable', 'protobuf', 'requests_toolbelt',
-                'python-json-logger', 'simplejson', 'requests', 'click', 'Polygon3', 'shapely', 'pillow', 'pycocotools',
-                'lxml', 'matplotlib']
 
+def read(fname):
+    with open(os.path.join(os.path.dirname(__file__), fname)) as fin:
+        return fin.read()
+
+
+# Dependencies do not include PyTorch, so
+# supervisely_lib.nn.hosted.pytorch will not work out of the box.
+# If you need to invoke that part of the code, it is very likely you
+# already have PyTorch installed.
 setup(
-    name='supervisely_lib',
-    version='0.1.0',
-    url='https://github.com/chrissem/supervisely',
-    author='Christian Mess',
-    author_email='c.mess@uke.de',
-    description='Supervisely SDK',
-    long_description=__doc__,
-    packages=find_packages(exclude=['tests']),
-    include_package_data=True,
-    zip_safe=False,
-    platforms='any',
-    setup_requires=['cython', 'numpy'],
-    install_requires=dependencies,
-    classifiers=[
-        # As from http://pypi.python.org/pypi?%3Aaction=list_classifiers
-        # 'Development Status :: 1 - Planning',
-        # 'Development Status :: 2 - Pre-Alpha',
-        # 'Development Status :: 3 - Alpha',
-        'Development Status :: 4 - Beta',
-        # 'Development Status :: 5 - Production/Stable',
-        # 'Development Status :: 6 - Mature',
-        # 'Development Status :: 7 - Inactive',
-        'Environment :: Console',
-        'Intended Audience :: Developers',
-        'License :: OSI Approved :: BSD License',
-        'Operating System :: POSIX',
-        'Operating System :: MacOS',
-        'Operating System :: Unix',
-        'Operating System :: Microsoft :: Windows',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 3',
-        'Topic :: Software Development :: Libraries :: Python Modules',
-    ]
+    name="supervisely",
+    version="0.0.1dev",
+    packages=find_packages(include=['supervisely_lib', 'supervisely_lib.*']),
+    description="Supervisely Python SDK.",
+    long_description=read("README.md"),
+    url="https://github.com/supervisely/supervisely",
+    install_requires=[
+        "flask-restful>=0.3.7",
+        "grpcio>=1.12.1",
+        "jsonschema>=2.6.0,<3.0.0",
+        "matplotlib>=2.2.2,<3.0.0",
+        "numpy>=1.14.3",
+        "opencv-python>=3.4.1,<4.0.0",
+        "pascal-voc-writer>=0.1.4",
+        "PTable>=0.9.2",
+        "pillow>=5.1.0,<6.0.0",
+        "protobuf>=3.7.1",
+        "python-json-logger>=0.1.8",
+        "requests>=2.18.4",
+        "requests-toolbelt>=0.9.1",
+        "scikit-image>=0.13.0",
+        "scipy>=1.1.0",
+        "Shapely>=1.5.13",
+        "simplejson>=3.16.0",
+        "Werkzeug>=0.15.1",
+    ],
 )

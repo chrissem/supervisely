@@ -155,7 +155,8 @@ class ObjectDetectionTrainer(SuperviselyModelTrainer):
 
         tf_config = load_sample_config(base_config_path)
 
-        if sly.fs.dir_empty(sly.TaskPaths.MODEL_DIR):
+        weights_dir = osp.join(sly.TaskPaths.MODEL_DIR, "model_weights")
+        if (not sly.fs.dir_exists(weights_dir)) or sly.fs.dir_empty(weights_dir):
             checkpoint = None
             logger.info('Weights will not be inited.')
         else:

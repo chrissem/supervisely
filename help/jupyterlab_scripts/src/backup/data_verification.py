@@ -63,7 +63,7 @@ def verify_data(orig_ann: Annotation, classes_matching: dict, res_project_meta: 
 
         iou_value = _compute_masks_iou(mask1, mask2)
 
-        tag_meta = res_project_meta.img_tag_metas.get(make_iou_tag_name(first_class))
+        tag_meta = res_project_meta.tag_metas.get(make_iou_tag_name(first_class))
         tag = Tag(tag_meta, iou_value)
         ann.add_tag(tag)
 

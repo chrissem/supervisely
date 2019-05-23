@@ -27,24 +27,48 @@ class ProjectMeta(object):
     # py_container is native Python container like appropriate dict or list
     def __init__(self, project_meta_json=None):
         self.classes = FigClasses()
-        self.img_tags = tags_lib.TagMetaCollection([])
-        self.obj_tags = tags_lib.TagMetaCollection([])
+        self.tags = tags_lib.TagMetaCollection([])
 
         if type(project_meta_json) is list:
             self._in_fmt = ProjectMetaFmt.V1_CLASSES
             self.classes = FigClasses(classes_lst=project_meta_json)
 
         elif type(project_meta_json) is dict:
-            fields = ['classes', 'tags_images', 'tags_objects', ]
-            for f in fields:
-                if f not in project_meta_json.keys():
+            required_fields = ['classes']
+            for f in required_fields:
+                if f not in project_meta_json:
                     raise RuntimeError('Missing field: %s' % f)
             self._in_fmt = ProjectMetaFmt.V2_META
             self.classes = FigClasses(classes_lst=project_meta_json['classes'])
-            self.img_tags = tags_lib.TagMetaCollection(
-                tag_metas=[tags_lib.TagMeta(tag_meta_json) for tag_meta_json in project_meta_json['tags_images']])
-            self.obj_tags = tags_lib.TagMetaCollection(
-                tag_metas=[tags_lib.TagMeta(tag_meta_json) for tag_meta_json in project_meta_json['tags_objects']])
+
+            tag_metas_json = project_meta_json.get('tags', [])
+            img_tag_metas_json = project_meta_json.get('tags_images', [])
+            obj_tag_metas_json = project_meta_json.get('tags_objects', [])
+
+            if len(tag_metas_json) > 0:
+                # New format - all project tags in a single collection.
+                if any(len(x) > 0 for x in [img_tag_metas_json, obj_tag_metas_json]):
+                    raise ValueError(
+                        'Project meta JSON contains both the {!r} section (current format merged tags for all of '
+                        'the project) and {!r} or {!r} sections (legacy format with separate collections for images '
+                        'and labeled objects). Either new format only or legacy format only are supported, but not a '
+                        'mix.'.format('tags', 'tags_images', 'tags_objects'))
+                self.tags = tags_lib.TagMetaCollection.from_json(project_meta_json['tags'])
+            else:
+                img_tag_metas = tags_lib.TagMetaCollection.from_json(img_tag_metas_json)
+                obj_tag_metas = tags_lib.TagMetaCollection.from_json(obj_tag_metas_json)
+                for obj_tag_meta_name in obj_tag_metas.names:
+                    obj_tag_meta = obj_tag_metas.get_tag_meta_by_name(obj_tag_meta_name)
+                    img_tag_meta_same_name = img_tag_metas.get_tag_meta_by_name(obj_tag_meta_name)
+                    if img_tag_meta_same_name is None:
+                        img_tag_metas.update([obj_tag_meta])
+                    elif obj_tag_meta != img_tag_meta_same_name:
+                        raise ValueError(
+                            'Unable to merge tag metas for images and objects. Found tags with the same name, but '
+                            'incompatible values. \n Image-level tag meta: {!r}\n Object-level tag meta: {!r}.\n '
+                            'Rename one of the tags to have a unique name to be able to load project meta.'.format(
+                                img_tag_meta_same_name.to_json(), obj_tag_meta.to_json()))
+                self.tags = img_tag_metas
 
         elif project_meta_json is None:
             self._in_fmt = None  # empty meta
@@ -58,8 +82,7 @@ class ProjectMeta(object):
 
     def update(self, rhs):
         self.classes.update(rhs.classes)
-        self.img_tags.update(rhs.img_tags.to_list())
-        self.obj_tags.update(rhs.obj_tags.to_list())
+        self.tags.update(rhs.tags.to_list())
 
     # TODO: rename to to_json()
     def to_py_container(self, out_fmt=_DEFAULT_OUT_FMT):
@@ -68,8 +91,7 @@ class ProjectMeta(object):
         elif out_fmt == ProjectMetaFmt.V2_META:
             res = {
                 'classes': self.classes.py_container,
-                'tags_images': self.img_tags.to_json(),
-                'tags_objects': self.obj_tags.to_json(),
+                'tags': self.tags.to_json(),
             }
         else:
             raise NotImplementedError()

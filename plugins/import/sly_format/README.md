@@ -1,5 +1,5 @@
 # Import Supervisely format 
-This plugin allows you to upload Projects in Supervisely format which includes images, annotations and `meta.json`. More about Supervisely format you can read [here].
+This plugin allows you to upload Projects in Supervisely format which includes images, annotations and `meta.json`. More about Supervisely format you can read [here](https://docs.supervise.ly/ann_format/).
 
 For this format the structure of directory should be the following:
 

@@ -155,15 +155,26 @@ class ImporterPascalVOCSegm:
                     inst_path = os.path.join(self.inst_dir, sample_name, MASKS_EXTENSION)
 
                 if all((x is None) or os.path.isfile(x) for x in [src_img_path, segm_path, inst_path]):
-                    ann = self._get_ann(src_img_path, segm_path, inst_path)
-                    ds.add_item_file(src_img_filename, src_img_path, ann=ann)
+                    try:
+                        ann = self._get_ann(src_img_path, segm_path, inst_path)
+                        ds.add_item_file(src_img_filename, src_img_path, ann=ann)
+                    except Exception as e:
+                        exc_str = str(e)
+                        sly.logger.warn('Input sample skipped due to error: {}'.format(exc_str), exc_info=True, extra={
+                            'exc_str': exc_str,
+                            'dataset_name': ds_name,
+                            'image': src_img_path,
+                        })
                 else:
                     sly.logger.warning("Processing '{}' skipped because no corresponding mask found."
                                        .format(src_img_filename))
+
                 progress.iter_done_report()
+            sly.logger.info('Dataset "{}" samples processing is done.'.format(ds_name), extra={})
 
         out_meta = sly.ProjectMeta(obj_classes=self.obj_classes)
         out_project.set_meta(out_meta)
+        sly.logger.info('Pascal VOC samples processing is done.', extra={})
 
 
 def main():

@@ -8,7 +8,7 @@ Docker image), neural networks also need model weights (to run inference or
 serve as a starting point for training a new model) and an output config (this
 determines which semantic classes are predicted using a given set of weights).
 
-So on a high level, here is what you need to do to integrate your custom neural
+On a high level, here is what you need to do to integrate your custom neural
 network into Supervisely:
 1. Write the code to implement the model logic. The code has to conform to a
    [specific layout](#code-layout) for the system to recognize your neural

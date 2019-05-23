@@ -47,14 +47,9 @@ All these metrics can also be defined in the multi-class setting. Here, the metr
 
 ```json
 {
-  "project_1": {
-    "name": "pr1_name",
-    "src": "image"
-  },
-  "project_2": {
-    "name": "pr2_name",
-    "src": "object"
-  },
+  "project_gt": "pr1_name",
+  "project_pred": "pr2_name",
+  "confidence_threshold": 0.5,
   "tags_mapping": {
     "pr1_cls_name_1": "pr2_cls_name_1",
     "pr1_cls_name_2": "pr2_cls_name_2"
@@ -62,15 +57,10 @@ All these metrics can also be defined in the multi-class setting. Here, the metr
 }
 ```
 
-1.  “classes_mapping” - field matches pairs of objects classes between which IoU will be evaluated.
-    
+1.  `tags_mapping` - This section defines a mapping between tag names that denote the same class in the two respective projects. Only tags from this mapping will be considered for calculating metrics, all other tags will be ignored.
 
-2. “project_1”(“project_2”) - description of 1st(2nd) project involved in metrics evalutaion.
+2.  `confidence_threshold` - For tags with numeric values, use this value as a confidence threshold. Only the tags with values no less than the threshold will be used for metrics computation. For all other tag types, no thresholding is done.
 
-	- “name” - name of project.
-
-	- “src” - mode in which the plugin will work with the project. Now Classification metrics plugin supports two modes: 1) “image” and 2) “object”. In “image” mode we operate with image tags:
+3. `project_gt`(`project_pred`) - name of 1st(2nd) project involved in metrics evalutaion.
+    Now Classification metrics plugin operate only with image tags:
 	<img src="https://i.imgur.com/4PwUVSX.png" width=1024/>
-	And in “object” mode with object tags:
-	<img src="https://i.imgur.com/HUps64t.png" width=1024/>
-	**Note: In “object” mode plugin works correctly only when images contain only one object.**

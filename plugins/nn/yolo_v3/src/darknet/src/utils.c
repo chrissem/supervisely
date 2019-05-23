@@ -826,7 +826,7 @@ void train_supervisely( char *cfgfile, char *weightfile,
                         char **img_pathes, int *num_gt_boxes, float **boxes, int ds_len,
                         char **vimg_pathes, int *vnum_gt_boxes, float **vboxes, int vds_len,
                         int *gpus, int ngpus,
-                        int num_threads, int epochs, int train_steps,
+                        int num_threads, int epochs, int train_steps, int checkpoint_every,
                         int layer_cutoff, int use_augm, int print_every, float bn_momentum)
 {
     //list *options = read_data_cfg(datacfg);
@@ -957,46 +957,43 @@ void train_supervisely( char *cfgfile, char *weightfile,
                 printf("Iter %06d / %06d   Loss now: %.8f\n\n", report_curr, report_total, loss);
             }
             free_data(train);
+        }
 
-            // Validate and make checkpoint
-            if (finished_iter >= train_steps) {
+        // Validate and optionally make a checkpoint
 #ifdef GPU
-                if(ngpus != 1) sync_nets(nets, ngpus, 0);
+        if(ngpus != 1) sync_nets(nets, ngpus, 0);
 #endif
-                char checkpoint_path[256];
-                sprintf(checkpoint_path, "/sly_task_data/results/%08d/model.weights", epoch);
-                save_weights(net, checkpoint_path);
+        pthread_join(vload_thread, 0);
+        val = vbuffer;
 
+        // Validation only on first GPU.
+        float vloss = val_network(net, val);
 
-                pthread_join(vload_thread, 0);
-                val = vbuffer;
-                vload_thread = load_data(vargs);
+        free_data(val);
+        vload_thread = load_data(vargs);
 
-                // Validation only on first GPU.
-                float vloss = val_network(net, val);
-                int is_best_loss = 0;
-                if (vloss < best_val_loss) {
-                    is_best_loss = 1;
-                }
+        const char * tm_str = timest_str();
+        printf("{\"message\": \"metrics\", \"event_type\": \"EventType.METRICS\", "
+                        "\"epoch\": %d, \"metrics\": {\"loss\": %f}, \"type\": \"val\", \"timestamp\": \"%s\", "
+                        "\"level\": \"info\"}\n",
+                    epoch+1, vloss, tm_str);
+        printf("Epoch %06d / %06d   Val loss now: %.8f\n\n", epoch, epochs, vloss);
 
-                free_data(val);
+        if (((epoch + 1) % checkpoint_every == 0) || (epoch + 1) == epochs) {
+            char checkpoint_path[256];
+            sprintf(checkpoint_path, "/sly_task_data/results/%08d/model.weights", epoch);
+            save_weights(net, checkpoint_path);
 
-                const char * tm_str = timest_str();
-                printf("{\"message\": \"metrics\", \"event_type\": \"EventType.METRICS\", "
-                             "\"epoch\": %d, \"metrics\": {\"loss\": %f}, \"type\": \"val\", \"timestamp\": \"%s\", "
-                             "\"level\": \"info\"}\n",
-                            epoch+1, vloss, tm_str);
-                printf("Epoch %06d / %06d   Val loss now: %.8f\n\n", epoch, epochs, vloss);
+            int is_best_loss = (vloss < best_val_loss);
 
-                unsigned long long sizeb = get_directory_size(checkpoint_path);
-                printf("{\"message\": \"checkpoint\", \"event_type\": \"EventType.CHECKPOINT\","
-                    "\"id\": %d, \"best_now\": %s, \"sizeb\": %llu, \"optional\": "
-                    "{\"epoch\": %f, \"val_metrics\": {\"loss\": %f}}, "
-                    "\"subdir\": \"%08d\",  \"timestamp\": \"%s\", "
-                    "\"level\": \"info\"}\n",
-                    checkpoint_idx, bool2str(is_best_loss), sizeb, epoch_flt, vloss, epoch, timest_str());
-                checkpoint_idx++;
-            }
+            unsigned long long sizeb = get_directory_size(checkpoint_path);
+            printf("{\"message\": \"checkpoint\", \"event_type\": \"EventType.CHECKPOINT\","
+                "\"id\": %d, \"best_now\": %s, \"sizeb\": %llu, \"optional\": "
+                "{\"epoch\": %d, \"val_metrics\": {\"loss\": %f}}, "
+                "\"subdir\": \"%08d\",  \"timestamp\": \"%s\", "
+                "\"level\": \"info\"}\n",
+                checkpoint_idx, bool2str(is_best_loss), sizeb, epoch, vloss, epoch, timest_str());
+            checkpoint_idx++;
         }
     }
     pthread_join(vload_thread, 0);

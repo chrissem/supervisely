@@ -63,7 +63,7 @@ def extract_images_from_dicom(dicom_obj):
 
 def convert():
     settings = json.load(open(sly.TaskPaths.SETTINGS_PATH))
-    img_tag_metas = sly.TagMetaCollection()
+    tag_metas = sly.TagMetaCollection()
 
     out_project = sly.Project(os.path.join(sly.TaskPaths.RESULTS_DIR, settings['res_names']['project']), sly.OpenMode.CREATE)
     requested_tags = settings.get("options", {}).get("tags", [])
@@ -104,8 +104,8 @@ def convert():
                     # Save tags
                     for tag, tag_meta in tags_and_metas:
                         ann = ann.add_tag(tag)
-                        if tag_meta not in img_tag_metas:
-                            img_tag_metas = img_tag_metas.add(tag_meta)
+                        if tag_meta not in tag_metas:
+                            tag_metas = tag_metas.add(tag_meta)
 
                     # Save annotations
                     dataset.add_item_np(sample_name + '.png', image, ann=ann)
@@ -123,7 +123,7 @@ def convert():
 
     sly.logger.info('Processed.', extra={'samples': samples_count, 'skipped': skipped_count})
 
-    out_meta = sly.ProjectMeta(img_tag_metas=img_tag_metas)
+    out_meta = sly.ProjectMeta(tag_metas=tag_metas)
     out_project.set_meta(out_meta)
 
 

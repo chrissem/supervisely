@@ -81,20 +81,27 @@ def convert():
     progress = sly.Progress('Dataset: {!r}'.format(DATASET_NAME), len(images_pathes))
     for img_fp in images_pathes:
         full_img_fp = join(img_dir, img_fp)
-        image = read_image_pillow(full_img_fp)
-        image_name = os.path.basename(full_img_fp)
-        sample_name = sly.fs.get_file_name(full_img_fp)
+        try:
+            image = read_image_pillow(full_img_fp)
+            image_name = os.path.basename(full_img_fp)
+            sample_name = sly.fs.get_file_name(full_img_fp)
 
-        ann = sly.Annotation(image.shape[:2])
-        mask_name = masks_map.pop(sample_name, None)
-        if mask_name is None:
-            sly.logger.warning('Mask for image {} doesn\'t exist.'.format(sample_name))
-        else:
-            full_mask_fp = join(ann_dir, mask_name)
-            labels = read_mask_labels(full_mask_fp, classes_mapping, obj_class_collection)
-            ann = ann.add_labels(labels)
+            ann = sly.Annotation(image.shape[:2])
+            mask_name = masks_map.pop(sample_name, None)
+            if mask_name is None:
+                sly.logger.warning('Mask for image {} doesn\'t exist.'.format(sample_name))
+            else:
+                full_mask_fp = join(ann_dir, mask_name)
+                labels = read_mask_labels(full_mask_fp, classes_mapping, obj_class_collection)
+                ann = ann.add_labels(labels)
 
-        ds.add_item_np(image_name, image, ann=ann)
+            ds.add_item_np(image_name, image, ann=ann)
+        except Exception as e:
+            exc_str = str(e)
+            sly.logger.warn('Input sample skipped due to error: {}'.format(exc_str), exc_info=True, extra={
+                'exc_str': exc_str,
+                'image': full_img_fp
+            })
         progress.iter_done_report()
 
     if len(masks_map) > 0:

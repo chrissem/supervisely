@@ -18,7 +18,7 @@ class ImporterCityscapes:
     def __init__(self):
         self.settings = json.load(open(sly.TaskPaths.SETTINGS_PATH))
         self.obj_classes = sly.ObjClassCollection()
-        self.imgtag_metas = sly.TagMetaCollection()
+        self.tag_metas = sly.TagMetaCollection()
 
     @classmethod
     def json_path_to_image_path(cls, json_path):
@@ -46,7 +46,7 @@ class ImporterCityscapes:
 
             interiors = [self.convert_points(interior) for interior in interiors]
             polygon = sly.Polygon(self.convert_points(polygon), interiors)
-            obj_class = sly.ObjClass(name=class_name, geometry_type=sly.Polygon, color=sly.color.random_rgb(0))
+            obj_class = sly.ObjClass(name=class_name, geometry_type=sly.Polygon, color=sly.color.random_rgb())
             ann = ann.add_label(sly.Label(polygon, obj_class))
             if not self.obj_classes.has_key(class_name):
                 self.obj_classes = self.obj_classes.add(obj_class)
@@ -55,8 +55,8 @@ class ImporterCityscapes:
     def _generate_sample_annotation(self, orig_img_path, orig_ann_path, train_val_tag):
         try:
             tag_meta = sly.TagMeta(train_val_tag, sly.TagValueType.NONE)
-            if not self.imgtag_metas.has_key(tag_meta.name):
-                self.imgtag_metas = self.imgtag_metas.add(tag_meta)
+            if not self.tag_metas.has_key(tag_meta.name):
+                self.tag_metas = self.tag_metas.add(tag_meta)
             tag = sly.Tag(tag_meta)
             ann = self._load_cityscapes_annotation(orig_img_path, orig_ann_path)
             ann = ann.add_tag(tag)
@@ -98,9 +98,13 @@ class ImporterCityscapes:
 
                 if all(os.path.isfile(x) for x in (orig_img_path, orig_ann_path)):
                     ds.add_item_file(sample_name, orig_img_path, ann=ann)
+                else:
+                    sly.logger.warn('Skipped sample without a complete set of files: {}'.format(sample_name),
+                                    exc_info=False, extra={'sample_name': sample_name,
+                                                           'image_path': orig_img_path,
+                                                           'annotation_path': orig_ann_path})
 
             except AnnotationConvertionException:
-
                 sly.logger.warn('Error occurred while processing input sample annotation.',
                                 exc_info=True, extra={'sample_name': sample_name})
             except Exception:
@@ -119,12 +123,12 @@ class ImporterCityscapes:
 
         sly.logger.info('Processed.', extra={'samples': samples_count, 'ok_cnt': ok_count})
 
-        out_meta = sly.ProjectMeta(obj_classes=self.obj_classes, img_tag_metas=self.imgtag_metas)
+        out_meta = sly.ProjectMeta(obj_classes=self.obj_classes, tag_metas=self.tag_metas)
         out_project.set_meta(out_meta)
         sly.logger.info('Found classes.', extra={'cnt': len(self.obj_classes),
                                                  'classes': sorted([obj_class.name for obj_class in self.obj_classes])})
-        sly.logger.info('Created tags.', extra={'cnt': len(out_meta.img_tag_metas),
-                                                'tags': sorted([tag_meta.name for tag_meta in out_meta.img_tag_metas])})
+        sly.logger.info('Created tags.', extra={'cnt': len(out_meta.tag_metas),
+                                                'tags': sorted([tag_meta.name for tag_meta in out_meta.tag_metas])})
 
 
 def main():

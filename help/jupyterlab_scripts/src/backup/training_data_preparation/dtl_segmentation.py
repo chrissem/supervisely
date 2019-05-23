@@ -39,8 +39,8 @@ src_meta = sly.ProjectMeta.from_json(src_meta_json)
 def process_meta(input_meta):
     output_meta = input_meta.clone()
     output_meta = output_meta.add_obj_class(class_bg)
-    output_meta = output_meta.add_img_tag_meta(tag_meta_train)
-    output_meta = output_meta.add_img_tag_meta(tag_meta_val)
+    output_meta = output_meta.add_tag_meta(tag_meta_train)
+    output_meta = output_meta.add_tag_meta(tag_meta_val)
     return output_meta
 
 

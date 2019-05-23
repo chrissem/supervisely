@@ -44,7 +44,7 @@ class MaskRCNNSingleImageApplier(SingleImageInferenceBase):
     def _validate_model_config(self, config):
         JsonConfigValidator().validate_inference_cfg(config)
 
-    def _model_out_obj_tags(self):
+    def _model_out_tags(self):
         tag_meta_dict = sly.TagMetaCollection()
         return tag_meta_dict.add(self.confidence_tag_meta)
 

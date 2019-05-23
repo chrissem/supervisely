@@ -136,6 +136,17 @@ class YOLOTrainer(SuperviselyModelTrainer):
                 filters_item = find_data_item(last_convolution, 'filters')
                 filters_item[1] = (len(self.out_classes) + 5) * 3
 
+        first_yolo_section_idx = next(idx for idx, section in enumerate(yolo_config) if section.name == YOLO_SECTION)
+        # Compute the index of the last layer to be loaded for transfer learning.
+        # This will be the last layer before any layers that depend on the number
+        # of predicted classes start.
+        # The layers that depend on the number of classes are YOLO layers, and their
+        # immediately preceding convolutional layers (since those have number of filters
+        # depending on the number of classes).
+        # So we find the first YOLO layer, subtract 2 to skip YOLO and preceding convolutional layer,
+        # and subtract another 2 to account for the first [net] and root sections of the config.
+        self._last_transfer_learning_load_layer_idx = first_yolo_section_idx - 4
+
         self._effective_model_cfg_path = os.path.join('/tmp', MODEL_CFG)
         write_config(yolo_config, self._effective_model_cfg_path)
         logger.info('Model config created.')
@@ -154,7 +165,7 @@ class YOLOTrainer(SuperviselyModelTrainer):
             ewit = {'weights_init_type': wi_type}
             logger.info('Weights will be inited from given model.', extra=ewit)
             if wi_type == TRANSFER_LEARNING:
-                self.layer_cutoff = 80  # fixed for the yolo_v3
+                self.layer_cutoff = self._last_transfer_learning_load_layer_idx
             elif wi_type == CONTINUE_TRAINING:
                 self.layer_cutoff = 0  # load weights for all given layers
 
@@ -183,6 +194,8 @@ class YOLOTrainer(SuperviselyModelTrainer):
         progress_dummy = sly.Progress('Building model:', 1)
         progress_dummy.iter_done_report()
 
+        logger.info('Will load model layers up to index {!r}.'.format(self.layer_cutoff))
+
         train_yolo(
             '/tmp/model.cfg'.encode('utf-8'),
             self.weights_path.encode('utf-8'),
@@ -201,6 +214,7 @@ class YOLOTrainer(SuperviselyModelTrainer):
             self.config['data_workers']['train'],
             self.config['epochs'],
             train_steps,
+            self.config.get('checkpoint_every', 1),
             self.layer_cutoff,
             1 if self.config['enable_augmentations'] else 0,  # with aug
             int(self.config['print_every_iter']),

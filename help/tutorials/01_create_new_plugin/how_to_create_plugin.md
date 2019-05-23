@@ -1,15 +1,23 @@
-# How to create Superviely plugin
+# Creating a Superviely plugin
 
-This tutorial walks you through how to create Supervisely Plugin. It will show you how to add the necessary files and structure to create the plugin, how to build the plugin, how to upload it to remote registry and how to add it to your account in Supervisely.
+This tutorial walks you through creating a new Supervisely plugin. In Supervisely, plugins are Docker images that are launched on worker machines by the *[Supervisely agent](../../../agent/README.md)*.
 
-# Plugin file structure
+Here we cover the steps of making a new Supervisely plugin from scratch:
 
-Create the following file structure:
+1. Use the special code layout required by Supervisely web instance.
+2. Pack the resulting code into a Docker image and publish to a public repository.
+3. Tell the Supervisely web instance about your new Docker image.
+
+## Plugin file layout
+
+Our web system and build script require the following code layout:
 
 ```
-.
+your_plugin_root_dir
+│
 ├── src
-│   └── main.py
+│   ├── main.py  (entry point)
+│   └── (... other source files ...)
 ├── supervisely_lib (optional)
 │   └── ...
 ├── Dockerfile
@@ -20,33 +28,36 @@ Create the following file structure:
 └── VERSION
 ```
 
-## Sources
-Folder `src` contains your source codes. If you use `supervisely_lib`, put its directory to the root of the plugin directory.
+### Sources
 
+All your source code must be inside the `src` subdirectory.
 
-## Dockerfile
+Note that the entrypoint must be a Python file named `main.py` (except for neural network plugins, which use `train.py` and `inference.py` entrypoints).
 
-Paragraph from [Docker documentation](https://docs.docker.com/engine/reference/builder/):
+Typically you would want to use our [Python SDK](https://github.com/supervisely/supervisely/tree/master/supervisely_lib) for processing data in Supervisely formats, logging in a compatible format that the web instance can interpret etc. Copy the library to a `supervisely_lib` subdirectory so that it is available when building a Docker image.
 
-Docker can build images automatically by reading the instructions from a `Dockerfile`. A `Dockerfile` is a text document that contains all the commands a user could call on the command line to assemble an image. Using `docker build` users can create an automated build that executes several command-line instructions in succession. 
+### Dockerfile
 
-At the end of your `Dockerfile` you have to put `COPY` command to copy source codes to the directory `/workdir` in docker image. Also you may need to update `PYTHONPATH` environment variable.
+Supervisely relies on Docker images to store the plugin exectutables. If you are not familiar with Docker basics, [Docker get started guide](https://docs.docker.com/get-started/) is a good starting point.
 
+It is important to have your Python entrypoints be in the `/workdir/src` directory for our build script to work. If you keep to the recommended file layout, then in your `Dockerfile` you can simply use
 ```
 COPY . /workdir
+```
+to put all your Python code inside the image. Also you need to set up `PYTHONPATH` environment variable to make all the source code visible to the Python interpeter:
+```
 ENV PYTHONPATH /workdir:/workdir/src:/workdir/supervisely_lib/worker_proto:$PYTHONPATH
-```  
+```
 
-## License
+### License
 
-It’s important for every plugin to include a license. This tells users who install your package the terms under which they can use your package. For help picking a license, see https://choosealicense.com/. Once you have chosen a license, open LICENSE and enter the license text. 
+It’s important for every plugin to include a license. This tells users who install your package the terms under which they can use your package. For help picking a license, see https://choosealicense.com/. Once you have chosen a license, open LICENSE and enter the license text.
 
 
-## Plugin info
+### Plugin info
 
-`plugin_info.json` defines the name and description fo your plugin. File contains JSON object with the following structure:
-
-```json
+`plugin_info.json` describes the name, description and type of your plugin. It must contain a JSON object of the following format:
+```python
 {
 	"title": "<Plugin name>",
 	"description": "<Plugin description>",
@@ -54,110 +65,71 @@ It’s important for every plugin to include a license. This tells users who ins
 }
 ```
 
-Supervisely supports several types of plugins: 
-* `import` - all plugins with this type will be available in "Import" page and will be used to import data to the system. Import means convert data from some format to supervisely format 
-* `dtl` - plugins to manipulate data with Data Transformation Language scripts
-* `custom` - custom plugin that can do allmost anything you need 
-* `architecture` - plugin defines how to train/inference/deploy neural network
+The name and description will be displayed to the user in Supervisely web interface. The plugin type is interpreted by the system to determine which kind of inputs and outputs are expected for the plugin, and which entry points should be used.
+
+Supervisely supports the following plugin types:
+* `import` plugins are intended for converting labeled datasets from another format to Supervisely format and uploading the converted data to the Supervisely web instance. These plugins will be available in the "Import" page.
+* `architecture` plugins are intended for implementation of neural network models. They should contain the code for training and inference, taking in projects in Supervisely format as input.
 
 
-## Readme
+### Readme
 
-README file will be available on Plugin Page. Example:
+The README file is a Markdown file that will be available on Plugin Page. Example:
 
 ![](https://i.imgur.com/YjNwmiP.png)
 
 
-## Version
+### Version
 
-Version file contains the name of the docker image (without docker registry name) and its tag in the following format `<docker image>:<tag>`. Example:
-
+Version file contains the name of the docker image (without docker registry name) and its tag in the following format `<docker image>:<tag>`. The plugin name and docker registry identify a plugin in the Supervisely web instance. The version tag (recorded as a Docker tag by the build script) lets you switch between different versions of the plugin. Switching to a different version may be useful if a plugin code update introduced a bug and you want to roll back to one of the previous versions. Example `VERSION` file:
 ```
-nn-icnet:4.0.0
-``` 
+some/prefix/nn-icnet:4.0.0
+```
 
-## Predefined run configs
+### Predefined run configs
 
-If your plugin takes a specific configuration as input, it is better to prepare some default examples in JSON file `predefined_run_configs.json` in the following structure:
+If your plugin takes a specific configuration as input, it is convenient to prepare some default examples in `predefined_run_configs.json` file with the following structure:
 
-```json
+```python
 [
   {
     "title": "<template title>",
-    "type": "<type of the plugin or mode(train/inference) in case of neural networks>",
+    "type": "<type of the plugin or mode (train/inference) in case of neural networks>",
     "config": {"custom configuration": "is here"}
   },
   {
-    "title": "<template title>",
-    "type": "<type of the plugin or mode(train/inference) in case of neural networks>",
-    "config": {"custom configuration": "is here"}
+    "title": "<another template title>",
+    "type": "<type of the plugin or mode>",
+    "config": {"different custom configuration": "is here"}
   }
 ]
 ```
 
 
-# How to build plugin
+## Build and publish the plugin Docker image
 
-To build plugin docker image execute the following shell script `build_plugin.sh` in the plugin root directory.
+To make your plugin available to the Supervisely web instance, you need to publish the plugin to a public Docker repository. If you do not have your own repository set up, the free [Docker Hub](https://docs.docker.com/docker-hub/) is a good default option.
+
+Once you figure out your Docker repository setup, build the plugin docker image by executing the [`build_plugin.sh`](./build_plugin.sh) script:
 
 ```sh
-./build_plugin.sh <my docker registry> .
+./build_plugin.sh your.docker.registry path/to/your_plugin_root_dir
 ```
 
-
-`build_plugin.sh` script content: 
-
+The script will print out build status information, ending with the full name of the plugin Docker image. If the build was successful, publish your image to the public repository. If the `VERSION` file contains `some/prefix/nn-icnet:4.0.0` as in our example, the command would be:
 ```sh
-REGISTRY=$1
-MODULE_PATH=$2
+docker push your.docker.registry/some/prefix/nn-icnet:4.0.0
+```
 
-VERSION_FILE=$(cat "${MODULE_PATH}/VERSION")
-IMAGE_NAME=${VERSION_FILE%:*}
-IMAGE_TAG=${VERSION_FILE#*:}
+## Tell the Supervisely web instance about your new plugin
 
-DOCKER_IMAGE=${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+Go to "Plugins" page and press "Add" button:
 
-
-MODES_ARR=()
-for mode in main train inference deploy deploy_smart; do
-	[[ -f "${MODULE_PATH}/src/${mode}.py" ]] && MODES_ARR+=( ${mode} )
-done
-MODES=${MODES_ARR[@]}
-
-function get_file_content () {
-	[[ -f "$1" ]] && echo $(base64 $1 | tr -d \\n) || echo ""
-}
-
-docker build \
-	--label "VERSION=${DOCKER_IMAGE}" \
-	--label "INFO=$(get_file_content "${MODULE_PATH}/plugin_info.json")" \
-	--label "MODES=${MODES}" \
-	--label "README=$(get_file_content "${MODULE_PATH}/README.md")" \
-	--label "CONFIGS=$(get_file_content "${MODULE_PATH}/predefined_run_configs.json")" \
-	--build-arg "MODULE_PATH=${MODULE_PATH}" \
-	--build-arg "REGISTRY=${REGISTRY}" \
-	--build-arg "TAG=${IMAGE_TAG}" \
-	-f "${MODULE_PATH}/Dockerfile" \
-	-t ${DOCKER_IMAGE} \
-	.
-
-echo "---------------------------------------------"
-echo ${DOCKER_IMAGE}
-```  
-
-
-This script runs `docker build` command and attaches technical files (readme, version, predefined configs) as labels in docker image. Then Supervisely platform will automatically extract all labels during importing plugin.
-
-
-# How to add plugin to Supervisely
-
-Go to "Plugnis" page and press "Add" button:
-
-![](https://i.imgur.com/uvBF7y2.png) 
+![](https://i.imgur.com/uvBF7y2.png)
 
 Enter plugin title and docker image and press "Create" button:
 
-![](https://i.imgur.com/DJsuyJ4.png) 
+![](https://i.imgur.com/DJsuyJ4.png)
 
 As a result new plugin will appear in your "Plugins" page:
 

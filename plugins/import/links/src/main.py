@@ -94,15 +94,22 @@ def process_dataset_links(project_id, file_path):
         progress = sly.Progress('Import dataset: {}'.format(dataset_name), len(lines))
         for line in lines:
             url = line.strip()
-            if not url:
-                continue
-            image_split_name = os.path.splitext(os.path.basename(url))
-            image_name = image_split_name[0]
-            image_name = slugify(image_name)
-            if len(image_split_name) == 2:
-                image_ext = image_split_name[1]
-                image_name = image_name + image_ext
-            image_id = add_image_to_dataset(dataset_id, image_name, url)
+            if url:
+                try:
+                    image_split_name = os.path.splitext(os.path.basename(url))
+                    image_name = image_split_name[0]
+                    image_name = slugify(image_name)
+                    if len(image_split_name) == 2:
+                        image_ext = image_split_name[1]
+                        image_name = image_name + image_ext
+                    add_image_to_dataset(dataset_id, image_name, url)
+                except Exception as e:
+                    exc_str = str(e)
+                    sly.logger.warn('Input link skipped due to error: {}'.format(exc_str), exc_info=True, extra={
+                        'exc_str': exc_str,
+                        'file_path': file_path,
+                        'link': line,
+                    })
             progress.iter_done_report()
 
 

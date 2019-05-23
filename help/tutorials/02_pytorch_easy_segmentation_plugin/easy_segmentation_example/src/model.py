@@ -2,11 +2,6 @@
 
 from torch import nn
 
-HEAD = 'head'
-INPUT_SIZE = 'input_size'
-HEIGHT = 'height'
-WIDTH = 'width'
-
 
 class ConvBNAct(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -28,7 +23,11 @@ class PyTorchSegmentation(nn.Module):
             ConvBNAct(in_channels=3, out_channels=10),
             ConvBNAct(in_channels=10, out_channels=20),
         )
-        self._head = nn.Conv2d(in_channels=20, out_channels=num_classes, kernel_size=3, padding=1)
+        self._head_layer = nn.Conv2d(in_channels=20, out_channels=num_classes, kernel_size=3, padding=1)
 
     def forward(self, inputs):
-        return self._layers(inputs)
+        return self._head_layer(self._layers(inputs))
+
+
+def model_factory_fn(num_classes, input_size, custom_model_config):
+    return PyTorchSegmentation(num_classes=num_classes)

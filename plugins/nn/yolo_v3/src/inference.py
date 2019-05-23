@@ -14,9 +14,9 @@ from yolo_config_utils import read_config, replace_config_section_values, write_
 
 class YOLOSingleImageApplier(SingleImageInferenceBase):
 
-    def __init__(self):
+    def __init__(self, task_model_config=None):
         sly.logger.info('YOLOv3 inference init started.')
-        super().__init__()
+        super().__init__(task_model_config)
         self.confidence_thresh = self._config['min_confidence_threshold']
         sly.logger.info('YOLOv3 inference init done.')
 
@@ -36,7 +36,7 @@ class YOLOSingleImageApplier(SingleImageInferenceBase):
     def class_title_to_idx_key(self):
         return common.class_to_idx_config_key()
 
-    def _model_out_obj_tags(self):
+    def _model_out_tags(self):
         return sly.TagMetaCollection(items=[self.confidence_tag_meta])
 
     def _load_train_config(self):

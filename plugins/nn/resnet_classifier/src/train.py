@@ -111,7 +111,7 @@ class ResnetTrainer(SuperviselyModelTrainer):
     def _determine_model_classes(self):
         if 'classes' not in self.config:
             # Key-value tags are ignored as a source of class labels.
-            img_tags = set(tag_meta.name for tag_meta in self.project.meta.img_tag_metas if
+            img_tags = set(tag_meta.name for tag_meta in self.project.meta.tag_metas if
                            tag_meta.value_type == sly.TagValueType.NONE)
             img_tags -= set(self.config['dataset_tags'].values())
             train_classes = sorted(img_tags)
@@ -159,7 +159,7 @@ class ResnetTrainer(SuperviselyModelTrainer):
     def _determine_out_config(self):
         super()._determine_out_config()
         self._determine_model_configuration()
-        self.out_config[self.classification_tags_key] = [self.project.meta.img_tag_metas.get(cls).to_json()
+        self.out_config[self.classification_tags_key] = [self.project.meta.tag_metas.get(cls).to_json()
                                                          for cls in self.classification_tags_sorted]
         self.out_config[self.classification_tags_to_idx_key] = self.classification_tags_to_idx
         self.out_config['num_layers'] = self.num_layers

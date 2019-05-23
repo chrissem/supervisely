@@ -1,5 +1,6 @@
 # coding: utf-8
 
+from .figure_graph import FigureGraph
 from .figure_point import FigurePoint
 from .figure_line import FigureLine
 from .figure_rectangle import FigureRectangle
@@ -10,6 +11,7 @@ from .figure_bitmap import FigureBitmap
 class FigureFactory:
 
     name_to_class = {
+        "graph": FigureGraph,
         "point": FigurePoint,
         "line": FigureLine,
         "rectangle": FigureRectangle,

@@ -43,7 +43,7 @@ class ResnetSingleImageApplier(SingleImageInferenceBase):
     def class_title_to_idx_key(self):
         return config_lib.class_to_idx_config_key()
 
-    def _model_out_img_tags(self):
+    def _model_out_tags(self):
         temp_collection = TagMetaCollection.from_json(self.train_config[self.classification_tags_key])
         res_collection = TagMetaCollection([TagMeta(x.name, TagValueType.ANY_NUMBER) for x in temp_collection])
         return res_collection
@@ -51,14 +51,12 @@ class ResnetSingleImageApplier(SingleImageInferenceBase):
     def _load_train_config(self):  # @TODO: partly copypasted from SingleImageInferenceBase
         self._load_raw_model_config_json()
 
-        self.classification_tags = self._model_out_img_tags()
+        self.classification_tags = self._model_out_tags()
         logger.info('Read model out tags', extra={'tags': self.classification_tags.to_json()})
         self.classification_tags_to_idx = self.train_config[self.classification_tags_to_idx_key]
         logger.info('Read model internal tags mapping', extra={'tags_mapping': self.classification_tags_to_idx})
 
-        self._model_out_meta = ProjectMeta(obj_classes=ObjClassCollection(),
-                                           img_tag_metas=self.classification_tags,
-                                           obj_tag_metas=self._model_out_obj_tags())
+        self._model_out_meta = ProjectMeta(obj_classes=ObjClassCollection(), tag_metas=self.classification_tags)
 
         self.idx_to_classification_tags = {v: k for k, v in self.classification_tags_to_idx.items()}
         self._determine_model_input_size()

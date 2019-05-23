@@ -120,6 +120,9 @@
       "epochs": {
         "$ref": "#/definitions/positive_int"
       },
+      "checkpoint_every": {
+        "$ref": "#/definitions/positive_int"
+      },
       "gpu_devices": {
         "$ref": "#/definitions/gpu_devices_list"
       },

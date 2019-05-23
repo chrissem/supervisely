@@ -70,6 +70,8 @@ class TagMeta:
             # If the value type is oneof, there must always be a values whitelist.
             # Copy to prevent modifications outside the class.
             return self._json_data['values'].copy()
+        else:
+            return None
 
     def add_value(self, value):
         if self.value_type != TagMeta.VALUE_TYPE_ONEOF_STRING:
@@ -94,13 +96,10 @@ class TagMeta:
         return deepcopy(self._json_data)
 
     def __eq__(self, other):
-        if type(other) != self.__class__ or self.value_type != other.value_type:
-            return False
-
-        if self.value_type == TagMeta.VALUE_TYPE_NONE:
-            return self.name == other.name
-        else:
-            return self.to_json() == other.to_json()
+        return (isinstance(other, TagMeta) and
+                self.name == other.name and
+                self.value_type == other.value_type and
+                self.values == other.values)
 
     @staticmethod
     def from_tag_json(tag_json):
@@ -201,6 +200,10 @@ class TagMetaCollection:
 
     def to_json(self):
         return [tag_meta.to_json() for tag_meta in self._tags_meta.values()]
+
+    @staticmethod
+    def from_json(json_data):
+        return TagMetaCollection(tag_metas=[TagMeta(tag_meta_json) for tag_meta_json in json_data])
 
 
 # TODO generic container unified with TagMetaCollection?

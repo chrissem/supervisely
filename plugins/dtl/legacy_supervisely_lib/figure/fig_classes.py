@@ -3,7 +3,9 @@
 from copy import deepcopy
 from enum import Enum
 
-from .color_utils import gen_new_color
+from .color_utils import hex2rgb, color2code
+
+from supervisely_lib.imaging.color import generate_rgb
 
 
 class FigShape(Enum):
@@ -12,6 +14,7 @@ class FigShape(Enum):
     LINE = 3
     POLYGON = 4
     BITMAP = 5
+    GRAPH = 6
 
 
 # storage for list of classes, preserving order
@@ -51,10 +54,12 @@ class FigClasses(object):
         if shape not in cls.allowed_shapes:
             raise RuntimeError('Shape not allowed: {}.'.format(shape))
 
-    @classmethod
-    def _check_add_color(cls, dct):
+    def _check_add_color(self, dct):
         if 'color' not in dct:
-            dct['color'] = gen_new_color()
+            exists_colors = [cls_dct['color'] for cls_dct in self.py_container if 'color' in cls_dct]
+            exists_colors_rgb = [hex2rgb(c) for c in exists_colors]
+            new_rgb = generate_rgb(exists_colors_rgb)
+            dct['color'] = color2code(new_rgb)
         else:
             pass  # @TODO: validate string
 

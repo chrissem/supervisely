@@ -10,16 +10,27 @@ lib = CDLL("/workdir/src/darknet/libdarknet.so", RTLD_GLOBAL)
 
 train_yolo = lib.train_supervisely
 lib.train_supervisely.argtypes = [
-    c_char_p, c_char_p,
-    POINTER(c_char_p), POINTER(c_int), POINTER(POINTER(c_float)), c_int,
-    POINTER(c_char_p), POINTER(c_int), POINTER(POINTER(c_float)), c_int,
-    POINTER(c_int), c_int,
-    c_int, c_int,
-    c_int, c_int, c_int, c_int, c_float
+    c_char_p,                       # char *cfgfile
+    c_char_p,                       # char *weightfile
+    POINTER(c_char_p),              # char **img_pathes
+    POINTER(c_int),                 # int *num_gt_boxes
+    POINTER(POINTER(c_float)),      # float **boxes
+    c_int,                          # int ds_len
+    POINTER(c_char_p),              # char **vimg_pathes
+    POINTER(c_int),                 # int *vnum_gt_boxes
+    POINTER(POINTER(c_float)),      # float **vboxes
+    c_int,                          # int vds_len
+    POINTER(c_int),                 # int *gpus
+    c_int,                          # int ngpus
+    c_int,                          # int num_threads
+    c_int,                          # int epochs
+    c_int,                          # int train_steps
+    c_int,                          # int checkpoint_every
+    c_int,                          # int layer_cutoff
+    c_int,                          # int use_augm
+    c_int,                          # int print_every
+    c_float                         # float bn_momentum
 ]
-# void train_supervisely(char *cfgfile, char *weightfile, char **img_pathes, int *num_gt_boxes, float **boxes,
-#     int *gpus, int ngpus, int num_threads, int epochs, int train_steps, int layer_cutoff, int use_augm,  int print_every,
-#     float bn_momentum);
 
 
 def c_get_directory_size(checkpoint_file_path):

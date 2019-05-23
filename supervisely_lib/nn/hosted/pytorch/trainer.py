@@ -1,41 +1,26 @@
-# coding: utf-8
-
-import supervisely_lib as sly
-from supervisely_lib.nn.dataset import SlyDataset, ensure_samples_nonempty
+from supervisely_lib import logger
+from supervisely_lib.nn.dataset import ensure_samples_nonempty
 from supervisely_lib.nn.hosted.class_indexing import CONTINUE_TRAINING, TRANSFER_LEARNING
+from supervisely_lib.nn.hosted.pytorch.constants import CUSTOM_MODEL_CONFIG, HEAD_LAYER
 from supervisely_lib.nn.hosted.trainer import SuperviselyModelTrainer, BATCH_SIZE, DATASET_TAGS, EPOCHS, LOSS, LR, \
-    TRAIN, VAL, WEIGHTS_INIT_TYPE
-from supervisely_lib.nn.pytorch.weights import WeightsRW
+    TRAIN, VAL, WEIGHTS_INIT_TYPE, INPUT_SIZE, HEIGHT, WIDTH
 from supervisely_lib.nn.training.eval_planner import EvalPlanner, VAL_EVERY
-from supervisely_lib.task.progress import epoch_float
+from supervisely_lib.nn.pytorch.dataset import PytorchSegmentationSlyDataset
+from supervisely_lib.nn.pytorch.weights import WeightsRW
+from supervisely_lib.task.paths import TaskPaths
+from supervisely_lib.task.progress import Progress, epoch_float, report_metrics_training, report_metrics_validation
 
 import torch
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-from torchvision.transforms.functional import to_tensor
-
-from model import PyTorchSegmentation, INPUT_SIZE, HEIGHT, WIDTH
 
 
-class PytorchSlyDataset(SlyDataset):
-    """Thin wrapper around the base Supervisely dataset IO logic to handle PyTorch specific conversions.
-
-    The base class handles locating and reading imagea and annotation data from disk, conversions between named classes
-    and integer class ids to feed to the models, and rendering annotations as images.
-    """
-
-    def _get_sample_impl(self, img_fpath, ann_fpath):
-        # Read the image, read the annotatio, render the annotation as a bitmap of per-pixel class ids, resize to
-        # requested model input size.
-        img, gt = super()._get_sample_impl(img_fpath=img_fpath, ann_fpath=ann_fpath)
-
-        # PyTorch specific logic:
-        # - convert from (H x W x Channels) to (Channels x H x W);
-        # - convert from uint8 to float32 data type;
-        # - move from 0...255 to 0...1 intensity range.
-        img_tensor = to_tensor(img)
-
-        return img_tensor, gt
+def _check_all_pixels_have_segmentation_class(targets):
+    if targets.min().item() < 0:
+        raise ValueError('Training data has an item that is not fully covered by the segmentation labeling '
+                         '(some image pixels are not assigned any class). This is an error. If you need to '
+                         'ignore some parts of the input images, use a special dummy class and a custom loss '
+                         'function that would ignore pixels of that class.')
 
 
 class PytorchSegmentationTrainer(SuperviselyModelTrainer):
@@ -58,10 +43,22 @@ class PytorchSegmentationTrainer(SuperviselyModelTrainer):
             VAL_EVERY: 0.5,
             LR: 0.001,
             WEIGHTS_INIT_TYPE: TRANSFER_LEARNING,  # CONTINUE_TRAINING,
+            CUSTOM_MODEL_CONFIG: {}    # Model-specific settings go in this section.
         }
 
-    def __init__(self):
-        super().__init__(default_config=PytorchSegmentationTrainer.get_default_config())
+    def __init__(self, model_factory_fn, optimization_loss_fn, training_metrics_dict=None, default_model_config=None):
+        default_config = PytorchSegmentationTrainer.get_default_config()
+        default_config[CUSTOM_MODEL_CONFIG].update(default_model_config if default_model_config is not None else {})
+
+        self._model_factory_fn = model_factory_fn
+        self._optimization_loss_fn = optimization_loss_fn
+        self._training_metrics_dict = training_metrics_dict.copy() if training_metrics_dict is not None else {}
+        if LOSS in self._training_metrics_dict:
+            raise ValueError('aaaaaaa')
+        self._metrics_with_loss = self._training_metrics_dict.copy()
+        self._metrics_with_loss[LOSS] = self._optimization_loss_fn
+
+        super().__init__(default_config=default_config)
 
     def get_start_class_id(self):
         """Set the integer segmentation class indices to start from 0.
@@ -80,25 +77,28 @@ class PytorchSegmentationTrainer(SuperviselyModelTrainer):
 
     def _construct_and_fill_model(self):
         # Progress reporting to show a progress bar in the UI.
-        model_build_progress = sly.Progress('Building model:', 1)
+        model_build_progress = Progress('Building model:', 1)
 
         # Check the class name --> index mapping to infer the number of model output dimensions.
         num_classes = max(self.class_title_to_idx.values()) + 1
 
         # Initialize the model.
-        model = PyTorchSegmentation(num_classes=num_classes)
-        sly.logger.info('Model has been instantiated.')
+        model = self._model_factory_fn(
+            num_classes=num_classes,
+            input_size=self._input_size,
+            custom_model_config=self.config.get(CUSTOM_MODEL_CONFIG, {}))
+        logger.info('Model has been instantiated.')
 
         # Load model weights appropriate for the given training mode.
-        weights_rw = WeightsRW(sly.TaskPaths.MODEL_DIR)
+        weights_rw = WeightsRW(TaskPaths.MODEL_DIR)
         weights_init_type = self.config[WEIGHTS_INIT_TYPE]
         if weights_init_type == TRANSFER_LEARNING:
             # For transfer learning, do not attempt to load the weights for the model head. The existing snapshot may
             # have been trained on a different dataset, even on a different set of classes, and is in general not
             # compatible with the current model even in terms of dimensions. The head of the model will be initialized
             # randomly.
-            self._model = weights_rw.load_for_transfer_learning(model, ignore_matching_layers=['_head'],
-                                                                logger=sly.logger)
+            self._model = weights_rw.load_for_transfer_learning(model, ignore_matching_layers=[HEAD_LAYER],
+                                                                logger=logger)
         elif weights_init_type == CONTINUE_TRAINING:
             # Continuing training from an older snapshot requires full compatibility between the two models, including
             # class index mapping. Hence the snapshot weights must exactly match the structure of our model instance.
@@ -108,13 +108,11 @@ class PytorchSegmentationTrainer(SuperviselyModelTrainer):
         self._model.cuda()
 
         # Advance the progress bar and log a progress message.
-        sly.logger.info('Weights have been loaded.', extra={WEIGHTS_INIT_TYPE: weights_init_type})
+        logger.info('Weights have been loaded.', extra={WEIGHTS_INIT_TYPE: weights_init_type})
         model_build_progress.iter_done_report()
 
     def _construct_loss(self):
-        # Initialize the logic for computing optimization loss.
-        # Here one can also add other interesting metrics, e.g. accuracy. to be tracked.
-        self._loss_fn = torch.nn.modules.loss.CrossEntropyLoss()
+        pass
 
     def _construct_data_loaders(self):
         # Initialize the IO logic to feed the model during training.
@@ -137,7 +135,7 @@ class PytorchSegmentationTrainer(SuperviselyModelTrainer):
             ensure_samples_nonempty(samples, dataset_tag, self.project.meta)
 
             # Instantiate the dataset object to handle sample indexing and image resizing.
-            dataset = PytorchSlyDataset(
+            dataset = PytorchSegmentationSlyDataset(
                 project_meta=self.project.meta,
                 samples=samples,
                 out_size=input_size,
@@ -145,7 +143,7 @@ class PytorchSegmentationTrainer(SuperviselyModelTrainer):
                 bkg_color=-1
             )
             # Report progress.
-            sly.logger.info('Prepared dataset.', extra={
+            logger.info('Prepared dataset.', extra={
                 'dataset_purpose': dataset_name, 'tag': dataset_tag, 'samples': len(samples)
             })
             # Initialize a PyTorch data loader. For the training dataset, set the loader to ignore the last incomplete
@@ -158,7 +156,7 @@ class PytorchSegmentationTrainer(SuperviselyModelTrainer):
             )
 
         # Report progress
-        sly.logger.info('DataLoaders have been constructed.')
+        logger.info('DataLoaders have been constructed.')
 
         # Compute the number of iterations per epoch for training and validation.
         self._train_iters = len(self._data_loaders[TRAIN])
@@ -179,41 +177,47 @@ class PytorchSegmentationTrainer(SuperviselyModelTrainer):
         self._model.eval()
         # Initialize the totals counters.
         validated_samples = 0
+        total_val_metrics = {name: 0.0 for name in self._metrics_with_loss}
         total_loss = 0.0
 
         # Iterate over validation dataset batches.
         for val_it, (inputs, targets) in enumerate(self._data_loaders[VAL]):
+            _check_all_pixels_have_segmentation_class(targets)
+
             # Move the data to the GPU and run inference.
             with torch.no_grad():
                 inputs_cuda, targets_cuda = Variable(inputs).cuda(), Variable(targets).cuda()
+
             outputs_cuda = self._model(inputs_cuda)
 
             # The last betch may be smaller than the rest if the dataset does not have a whole number of full batches,
             # so read the batch size from the input.
             batch_size = inputs_cuda.size(0)
 
-            # Compute the loss and grab the value from GPU.
-            loss_value = self._loss_fn(outputs_cuda, targets_cuda).item()
+            # Compute the metrics and grab the values from GPU.
+            batch_metrics = {name: metric_fn(outputs_cuda, targets_cuda).item()
+                             for name, metric_fn in self._metrics_with_loss.items()}
+            for name, metric_value in batch_metrics.items():
+                total_val_metrics[name] += metric_value * batch_size
 
             # Add up the totals.
-            total_loss += loss_value * batch_size
             validated_samples += batch_size
 
             # Report progress.
-            sly.logger.info("Validation in progress", extra={'epoch': self.epoch_flt,
-                                                             'val_iter': val_it, 'val_iters': self._val_iters})
+            logger.info("Validation in progress",
+                        extra={'epoch': self.epoch_flt, 'val_iter': val_it, 'val_iters': self._val_iters})
 
         # Compute the average loss from the accumulated totals.
-        metrics_values = {LOSS: total_loss / validated_samples}
+        avg_metrics_values = {name: total_value / validated_samples for name, total_value in total_val_metrics.items()}
 
         # Report progress and metric values to be plotted in the training chart and return.
-        sly.report_metrics_validation(self.epoch_flt, metrics_values)
-        sly.logger.info("Validation has been finished", extra={'epoch': self.epoch_flt})
-        return metrics_values
+        report_metrics_validation(self.epoch_flt, avg_metrics_values)
+        logger.info("Validation has been finished", extra={'epoch': self.epoch_flt})
+        return avg_metrics_values
 
     def train(self):
         # Initialize the progesss bar in the UI.
-        training_progress = sly.Progress('Model training: ', self._epochs * self._train_iters)
+        training_progress = Progress('Model training: ', self._epochs * self._train_iters)
 
         # Initialize the optimizer.
         optimizer = torch.optim.Adam(self._model.parameters(), lr=self.config[LR])
@@ -221,8 +225,10 @@ class PytorchSegmentationTrainer(SuperviselyModelTrainer):
         best_val_loss = float('inf')
 
         for epoch in range(self._epochs):
-            sly.logger.info("Starting new epoch", extra={'epoch': self.epoch_flt})
+            logger.info("Starting new epoch", extra={'epoch': self.epoch_flt})
             for train_it, (inputs_cpu, targets_cpu) in enumerate(self._data_loaders[TRAIN]):
+                _check_all_pixels_have_segmentation_class(targets_cpu)
+
                 # Switch the model into training mode to enable gradient backpropagation and batch norm running average
                 # updates.
                 self._model.train()
@@ -230,19 +236,23 @@ class PytorchSegmentationTrainer(SuperviselyModelTrainer):
                 # Copy input batch to the GPU, run inference and compute optimization loss.
                 inputs_cuda, targets_cuda = Variable(inputs_cpu).cuda(), Variable(targets_cpu).cuda()
                 outputs_cuda = self._model(inputs_cuda)
-                loss = self._loss_fn(outputs_cuda, targets_cuda)
+                loss = self._optimization_loss_fn(outputs_cuda, targets_cuda)
 
                 # Make a gradient descent step.
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
+                metric_values = {name: metric_fn(outputs_cuda, targets_cuda).item()
+                                 for name, metric_fn in self._training_metrics_dict.items()}
+                metric_values[LOSS] = loss.item()
+
                 # Advance UI progess bar.
                 training_progress.iter_done_report()
                 # Compute fractional epoch value for more precise metrics reporting.
                 self.epoch_flt = epoch_float(epoch, train_it + 1, self._train_iters)
                 # Report metrics to be plotted in the training chart.
-                sly.report_metrics_training(self.epoch_flt, {LOSS: loss.item()})
+                report_metrics_training(self.epoch_flt, metric_values)
 
                 # If needed, do validation and snapshotting.
                 if self._eval_planner.need_validation(self.epoch_flt):
@@ -266,15 +276,4 @@ class PytorchSegmentationTrainer(SuperviselyModelTrainer):
                     })
 
             # Report progress
-            sly.logger.info("Epoch has finished", extra={'epoch': self.epoch_flt})
-
-
-def main():
-    # Read the training config and initialize all the training logic.
-    x = PytorchSegmentationTrainer()
-    # Run the training loop.
-    x.train()
-
-
-if __name__ == '__main__':
-    sly.main_wrapper('UNET_V2_TRAIN', main)
+            logger.info("Epoch has finished", extra={'epoch': self.epoch_flt})

@@ -27,13 +27,13 @@ src_meta = sly.ProjectMeta.from_json(src_meta_json)
 
 def process_meta(input_meta):
     classes_mapping = {}
-    output_meta = sly.ProjectMeta(obj_classes=[], img_tag_metas=input_meta.img_tag_metas, obj_tag_metas=input_meta.obj_tags)
+    output_meta = sly.ProjectMeta(obj_classes=[], tag_metas=input_meta.tag_metas)
     for obj_class in input_meta.obj_classes:
         classes_mapping[obj_class.name] = '{}_bbox'.format(obj_class.name)
         new_obj_class = sly.ObjClass(classes_mapping[obj_class.name], sly.Rectangle, color=obj_class.color)
         output_meta = output_meta.add_obj_class(new_obj_class)
-    output_meta = output_meta.add_img_tag_meta(sly.TagMeta('train', sly.TagValueType.NONE))
-    output_meta = output_meta.add_img_tag_meta(sly.TagMeta('val', sly.TagValueType.NONE))
+    output_meta = output_meta.add_tag_meta(sly.TagMeta('train', sly.TagValueType.NONE))
+    output_meta = output_meta.add_tag_meta(sly.TagMeta('val', sly.TagValueType.NONE))
     return output_meta, classes_mapping
 
 
@@ -67,9 +67,9 @@ def process(img, ann):
     results.extend(crops)
 
     for cur_img, cur_ann in results:
-        tag = sly.Tag(dst_meta.get_img_tag_meta('train'), value=None)
+        tag = sly.Tag(dst_meta.get_tag_meta('train'), value=None)
         if random.random() <= validation_portion:
-            tag = sly.Tag(dst_meta.get_img_tag_meta('val'), value=None)
+            tag = sly.Tag(dst_meta.get_tag_meta('val'), value=None)
         cur_ann.add_tag(tag)
     return results
 

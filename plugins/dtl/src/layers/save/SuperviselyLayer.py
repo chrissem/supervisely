@@ -29,7 +29,9 @@ class SuperviselyLayer(Layer):
         return False
 
     def validate_dest_connections(self):
-        pass
+        for dst in self.dsts:
+            if len(dst) == 0:
+                raise ValueError("Destination name in '{}' layer is empty!".format(self.action))
 
     def process(self, data_el):
         img_desc, ann = data_el

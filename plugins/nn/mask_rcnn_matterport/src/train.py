@@ -32,6 +32,8 @@ class MaskRCNNTrainer(SuperviselyModelTrainer):
             'input_size': {
                 'min_dim': 256,
                 'max_dim': 256,
+                'width': 0,  # Not used. For compatibility.
+                'height': 0  # Not used. For compatibility.
             },
             'special_classes': {
                 'background': 'bg',

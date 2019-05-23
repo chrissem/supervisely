@@ -4,6 +4,7 @@
     "type": "custom",
     "config": {
       "project_gt": "pr1_name",
+      "confidence_threshold": 0.5,
       "tags_mapping": {
         "class_0": "class_0_resnet",
         "class_1": "class_1_resnet"
@@ -16,6 +17,7 @@
     "config": {
       "project_gt": "pr1_name",
       "project_pred": "pr2_name",
+      "confidence_threshold": 0.5,
       "tags_mapping": {
         "class_0": "class_0_resnet",
         "class_1": "class_1_resnet"

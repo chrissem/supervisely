@@ -6,7 +6,8 @@ For now we have the following resources available:
 ### Integration guides
 
 * [Create a new Supervisely plugin](./tutorials/01_create_new_plugin/how_to_create_plugin.md)
-* [Integrate your custom neural network](./tutorials/02_custom_neural_net_plugin/custom_nn_plugin.md)
+* [Easy guide: Integrate a custom Pytorch Segmentation neural network](./tutorials/02_pytorch_easy_segmentation_plugin/pytorch_segmentation_integration_template.md)
+* [General detailed guide: Integrate any custom neural network](./tutorials/03_custom_neural_net_plugin/custom_nn_plugin.md)
 
 ### Python SDK tutorials and cookbooks
 
@@ -21,12 +22,17 @@ For now we have the following resources available:
 #### Cookbooks
 
 * [Analyse data annotation quality](./jupyterlab_scripts/src/cookbook/analyse_annotation_quality/analyse_annotation_quality.ipynb)
-* [Calculate quality metrics](./jupyterlab_scripts/src/cookbook/calculate_metrics/calculate_metrics.ipynb)
+* [Calculate classification metrics](./jupyterlab_scripts/src/cookbook/calculate_classification_metrics/calculate_classification_metrics.ipynb)
+* [Calculate confusion matrix](./jupyterlab_scripts/src/cookbook/calculate_confusion_matrix_metric/calculate_confusion_matrix.ipynb)
+* [Calculate mean average precision (mAP)](./jupyterlab_scripts/src/cookbook/calculate_map_metric/calculate_map.ipynb)
+* [Calculate mean intersection over union (mIOU)](./jupyterlab_scripts/src/cookbook/calculate_metrics/calculate_metrics.ipynb)
 * [Convert between class geometry types](./jupyterlab_scripts/src/cookbook/convert_class_shape/convert_class_shape.ipynb)
 * [Import a project using a list of image links](./jupyterlab_scripts/src/cookbook/create_project_from_links/create_project_from_links.ipynb)
 * [Download a project locally](./jupyterlab_scripts/src/cookbook/download_project/download_project.ipynb)
+* [Filter project by tags](./jupyterlab_scripts/src/cookbook/filter_project_by_tags/filter_project_by_tags.ipynb)
 * [Merge projects into one](./jupyterlab_scripts/src/cookbook/merge_projects/merge_projects.ipynb)
-* [Add augmentations and prepare data for training a detection model](./jupyterlab_scripts/src/cookbook/training_data_for_detection/training_data_for_detection.ipynb)
-* [Add augmentations and prepare data for training a segmentation model](./jupyterlab_scripts/src/cookbook/training_data_for_segmentation/training_data_for_segemntation.ipynb)
+* [Plot tags distribution statistics](./jupyterlab_scripts/src/cookbook/plot_tags_distribution/plot_tags_distribution.ipynb)
 * [Split the data between train and validation folds using tags](./jupyterlab_scripts/src/cookbook/train_validation_tagging/train_validation_tagging.ipynb)
+* [Add augmentations and prepare data for training a detection model](./jupyterlab_scripts/src/cookbook/training_data_for_detection/training_data_for_detection.ipynb)
+* [Add augmentations and prepare data for training a segmentation model](./jupyterlab_scripts/src/cookbook/training_data_for_segmentation/training_data_for_segmentation.ipynb)
 * [Upload a project using  using Supervisely API](./jupyterlab_scripts/src/cookbook/upload_project/upload_project.ipynb)

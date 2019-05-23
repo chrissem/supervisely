@@ -197,15 +197,14 @@ class Layer:
                     res_meta.classes.replace(src_class_title, dst_class)
 
             # TODO switch to get added / removed tags to be TagMeta instances.
-            #print(self._config)
             rm_imtags = [tags_lib.TagMeta.from_tag_json(tag) for tag in self.get_removed_tags()]
-            res_meta.img_tags = res_meta.img_tags.difference(rm_imtags)
+            res_meta.tags = res_meta.tags.difference(rm_imtags)
             new_imtags = [tags_lib.TagMeta.from_tag_json(tag) for tag in self.get_added_tags()]
-            new_imtags_exist = res_meta.img_tags.intersection(new_imtags).to_list()
+            new_imtags_exist = res_meta.tags.intersection(new_imtags).to_list()
             if len(new_imtags_exist) != 0:
-                exist_tag_names = [t.name for t in new_imtags]
+                exist_tag_names = [t.name for t in new_imtags_exist]
                 logger.warn('Tags {} already exist.'.format(exist_tag_names))
-            res_meta.img_tags.update(new_imtags)
+            res_meta.tags.update(new_imtags)
             self.output_meta = res_meta
         except Exception as e:
             logger.error("Meta-error occurred in layer '{}' with config: {}".format(self.action, self._config))

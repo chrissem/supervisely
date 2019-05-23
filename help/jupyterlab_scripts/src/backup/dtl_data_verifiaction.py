@@ -38,7 +38,7 @@ classes_mapping = {
 
 
 def process_meta(input_meta):
-    output_meta = sly.ProjectMeta(obj_classes=None, img_tag_metas=input_meta.img_tag_metas, objtag_metas=input_meta.obj_tags)
+    output_meta = sly.ProjectMeta(obj_classes=None, tag_metas=input_meta.tag_metas)
     for obj_class in input_meta.obj_classes:
         if obj_class.name in classes_mapping.keys() or obj_class.name in classes_mapping.values():
             output_meta = output_meta.add_obj_class(obj_class)
@@ -46,7 +46,7 @@ def process_meta(input_meta):
     for gt_class in classes_mapping:
         output_meta = output_meta.add_obj_class(sly.ObjClass(make_false_positive_name(gt_class), sly.Bitmap))
         output_meta = output_meta.add_obj_class(sly.ObjClass(make_false_negative_name(gt_class), sly.Bitmap))
-        output_meta = output_meta.add_img_tag_meta(sly.TagMeta(make_iou_tag_name(gt_class), sly.TagValueType.ANY_NUMBER))
+        output_meta = output_meta.add_tag_meta(sly.TagMeta(make_iou_tag_name(gt_class), sly.TagValueType.ANY_NUMBER))
     return output_meta
 
 

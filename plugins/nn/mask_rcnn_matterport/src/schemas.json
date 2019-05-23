@@ -39,7 +39,7 @@
     },
     "positive_dim_limits": {
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "required": [
         "min_dim",
         "max_dim"

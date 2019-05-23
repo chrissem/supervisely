@@ -53,15 +53,16 @@ tagmeta_weather = sly.TagMeta(name='weather',
                               possible_values=['rain', 'sun', 'cloud'],
                               color=[153, 0, 153])
 tagmeta_annotate = sly.TagMeta('to_annotation', sly.TagValueType.NONE)
-img_tag_meta_collection = sly.TagMetaCollection([tagmeta_weather, tagmeta_annotate])
 
 #define tags for objects
 tagmeta_vehicle_type = sly.TagMeta('vehicle_type', sly.TagValueType.ONEOF_STRING, ['sedan', 'suv', 'hatchback'])
 tagmeta_confidence = sly.TagMeta('confidence', sly.TagValueType.ANY_NUMBER)
-obj_tag_meta_collection = sly.TagMetaCollection([tagmeta_vehicle_type, tagmeta_confidence])
+
+tagmeta_collection = sly.TagMetaCollection(
+    [tagmeta_weather, tagmeta_annotate, tagmeta_vehicle_type, tagmeta_confidence])
 
 #combine everythiong to project meta
-meta = sly.ProjectMeta(obj_class_collection, img_tag_meta_collection, obj_tag_meta_collection)
+meta = sly.ProjectMeta(obj_class_collection, tagmeta_collection)
 print(meta)
 api.project.update_meta(project.id, meta.to_json())
 

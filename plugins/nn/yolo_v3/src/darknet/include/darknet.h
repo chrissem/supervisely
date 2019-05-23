@@ -755,7 +755,7 @@ void train_supervisely( char *cfgfile, char *weightfile,
                         char **img_pathes, int *num_gt_boxes, float **boxes, int ds_len,
                         char **vimg_pathes, int *vnum_gt_boxes, float **vboxes, int vds_len,
                         int *gpus, int ngpus,
-                        int num_threads, int epochs, int train_steps,
+                        int num_threads, int epochs, int train_steps, int checkpoint_every,
                         int layer_cutoff, int use_augm, int print_every, float bn_momentum);
 
 int network_width(network *net);
